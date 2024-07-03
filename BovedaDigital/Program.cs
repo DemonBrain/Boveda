@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using static Dropbox.Api.TeamLog.EventCategory;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,21 +13,33 @@ var secretkey = builder.Configuration.GetSection("settings").GetSection("secretk
 var keyBytes = Encoding.UTF8.GetBytes(secretkey);
 
 
-builder.Services.AddAuthentication(config =>
+builder.Services.AddAuthentication(options =>
 {
-    config.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    config.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(jwt =>
+{
+    var key = Encoding.ASCII.GetBytes(builder.Configuration["Parametros:TokenConfigurations:Secret"] ?? string.Empty);
 
-}).AddJwtBearer(config =>
-{
-    config.RequireHttpsMetadata = false;
-    config.SaveToken = true;
-    config.TokenValidationParameters = new TokenValidationParameters
+    jwt.SaveToken = true;
+    jwt.RequireHttpsMetadata = true;
+
+    jwt.TokenValidationParameters = new TokenValidationParameters
     {
+        ValidIssuer = builder.Configuration["Parametros:TokenConfigurations:Issuer"] ?? string.Empty,
+        ValidAudience = builder.Configuration["Parametros:TokenConfigurations:Audience"] ?? string.Empty,
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
-        ValidateIssuer = false,
-        ValidateAudience = false
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ClockSkew = TimeSpan.Zero,
+        ValidateLifetime = true,
+        SaveSigninToken = true,
+        LifetimeValidator = (DateTime? notBefore, DateTime? expires, SecurityToken securityToken, TokenValidationParameters validationParameters) =>
+        {
+            return expires > DateTime.UtcNow;
+        }
     };
 });
 
@@ -58,6 +71,8 @@ app.UseCors("NuevaPolitica");
 
 
 app.UseAuthentication();    
+
+app.UseAuthorization();
 
 app.UseHttpsRedirection();
 

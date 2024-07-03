@@ -16,6 +16,7 @@ namespace SmcApi.Controllers
 
     [Route("[controller]")]
     [ApiController]
+    [Authorize]
     public class Controller : ControllerBase
     {
         /*------------------------  IMPORTANTES  ------------------------*/
